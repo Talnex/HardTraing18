@@ -28,14 +28,16 @@ sbit switch_2 = P3^1;
 sbit motor1 = P3^6;//电机引脚
 sbit motor2 = P3^7;
 
-sbit key_yes = P2^0;//表示确认、开始的按键
-sbit key_pause = P2^1;//表示暂停的按键
-sbit key_mode = P2^2;//模式选择的按键
-sbit music = P2^3;//蜂鸣器
+sbit KEY1 = P2^0;//表示确认、开始的按键
+sbit KEY2 = P2^1;//表示暂停的按键
+sbit KEY3 = P2^2;//模式选择的按键
+sbit KEY4 = P2^6;//手动模式减少时间
+sbit KEY5 = P2^7;//手动模式增加时间
+
 sbit key_out = P2^4;//模拟出水结束中断
 sbit key_in = P2^5;//模拟进水结束中断
-sbit key_down = P2^6;//手动模式减少时间
-sbit key_up = P2^7;//手动模式增加时间
+
+sbit music = P2^3;//蜂鸣器
 
 unsigned char code DuanMa[10]={0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7d,0x07,0x7f,0x6f};// 显示段码值0~9
 unsigned char code WeiMa[]={0xfe,0xfd,0xfb,0xf7,0xef,0xdf,0xbf,0x7f};//分别对应相应的数码管点亮,即位码
@@ -43,6 +45,31 @@ unsigned char TempData[8]; //存储显示值的全局变量
 
 
 void moto_run();
+void autorun();
+
+void setdisplay(unsigned char a,unsigned char b,unsigned char c,unsigned char d,
+				unsigned char e,unsigned char f,unsigned char g,unsigned char h){
+	TempData[0]=DuanMa[a];
+    TempData[1]=DuanMa[b];
+    TempData[2]=DuanMa[c];
+    TempData[3]=DuanMa[d];
+    TempData[4]=DuanMa[e];
+    TempData[5]=DuanMa[f];
+	TempData[6]=DuanMa[g];
+    TempData[7]=DuanMa[h];
+
+
+}
+void displayclr(){
+	TempData[0]=0x00;
+    TempData[1]=0x00;
+    TempData[2]=0x00;
+    TempData[3]=0x00;
+    TempData[4]=0x00;
+    TempData[5]=0x00;
+	TempData[6]=0x00;
+    TempData[7]=0x00;
+}
 
 void settimer0(){
 
@@ -50,11 +77,22 @@ void settimer0(){
 	TL0 = 0x00;
 
 }
+
+void settimer1(){
+
+ 	TH0=(256-250)/256;		
+ 	TL0=(256-250)%256;
+
+}
 void init(){
   P1 = 0x00;
-  P2 = 0xff;
-  TMOD|=0x11;
+  P2 = 0xFF;
+  TMOD|=0x21;
   settimer0();
+  settimer1();
+  ET1 = 1;
+  EA = 1;
+  TR1 = 1;
 //  P3 = 0xff;
   //EA = 1;
 }
@@ -91,6 +129,7 @@ void Display(unsigned char FirstBit,unsigned char Num)
        duan=1;     //段锁存
        wei=0;
        
+	   delayms(1);
 	   i++;
        if(i==Num)
 	      i=0;
@@ -119,19 +158,19 @@ void water_in(){
 	  led_2 = 1;
 	  led_3 = 1;
 	  
-	  delayms(200);
+	  delayms(50);
 
 	  led_1 = 1;
 	  led_2 = 0;
 	  led_3 = 1;
 	  
-	  delayms(200);
+	  delayms(50);
 
 	  led_1 = 1;
 	  led_2 = 1;
 	  led_3 = 0;
 	  
-	  delayms(200);
+	  delayms(50);
    }
 	water_stop();
 
@@ -148,19 +187,19 @@ void water_out(){
 	  led_2 = 1;
 	  led_3 = 0;
 	  
-	  delayms(200);
+	  delayms(50);
 
 	  led_1 = 1;
 	  led_2 = 0;
 	  led_3 = 1;
 	  
-	  delayms(200);
+	  delayms(50);
 
 	  led_1 = 0;
 	  led_2 = 1;
 	  led_3 = 1;
 	  
-	  delayms(200);
+	  delayms(50);
    }
 	water_stop();
 }
@@ -188,10 +227,73 @@ void moto_stop(){
 }
 
 //按键扫描程序
-void keyscan(){
-
-
+unsigned char KeyScan(void)
+{
+/********************************************************/  
+if(!KEY1)  //如果检测到低电平，说明按键按下
+    {
+	 delayms(10); //延时去抖，一般10-20ms
+     if(!KEY1)     //再次确认按键是否按下，没有按下则退出
+	   {
+        while(!KEY1);//如果确认按下按键等待按键释放，没有则退出
+	       {
+		   return 1;
+	 		}
+	   }
+	}
+/********************************************************/  
+else if(!KEY2)  //如果检测到低电平，说明按键按下
+    {
+	 delayms(10); //延时去抖，一般10-20ms
+     if(!KEY2)     //再次确认按键是否按下，没有按下则退出
+	   {
+        while(!KEY2);//如果确认按下按键等待按键释放，没有则退出
+	       {
+		   return 2;
+	 		}
+	   }
+	}
+/********************************************************/  
+else if(!KEY3)  //如果检测到低电平，说明按键按下
+    {
+	 delayms(10); //延时去抖，一般10-20ms
+     if(!KEY3)     //再次确认按键是否按下，没有按下则退出
+	   {
+        while(!KEY3);//如果确认按下按键等待按键释放，没有则退出
+	       {
+		   return 3;
+	 		}
+	   }
+	}
+/********************************************************/  
+else if(!KEY4)  //如果检测到低电平，说明按键按下
+    {
+	 delayms(10); //延时去抖，一般10-20ms
+     if(!KEY4)     //再次确认按键是否按下，没有按下则退出
+	   {
+        while(!KEY4);//如果确认按下按键等待按键释放，没有则退出
+	       {
+		   return 4;
+	 		}
+	   }
+	}
+/********************************************************/  
+else if(!KEY5)  //如果检测到低电平，说明按键按下
+    {
+	 delayms(10); //延时去抖，一般10-20ms
+     if(!KEY5)     //再次确认按键是否按下，没有按下则退出
+	   {
+        while(!KEY5);//如果确认按下按键等待按键释放，没有则退出
+	       {
+		   return 5;
+	 		}
+	   }
+	}
+/********************************************************/  
+else
+    return 0;
 }
+
 //报警程序
 void song(){
    unsigned int i;
@@ -210,10 +312,42 @@ void song(){
 	   }       
     }
 }
+//手动选择模式
+void diy(){
+
+}
 
 //功能选择
 void menu(){
-
+	unsigned char key;
+	displayclr();
+	TempData[6]=DuanMa[0];
+    TempData[7]=DuanMa[0];
+	while(1){
+	  key = KeyScan();
+	  if(key!=0){
+	    if(key!=2){
+		  if(key!=3){
+		   	if(key==1){
+			 	if(TempData[7]==DuanMa[0]) autorun();
+				else diy();
+			}else if(key==4){
+			 	TempData[7]=DuanMa[0];
+			}else if(key==5){
+				TempData[7]=DuanMa[1];
+			}
+		  }
+		}
+	  }
+	  
+	}
+	//while(()==0){
+//	   TempData[7]=DuanMa[key];
+//	   TempData[6]=DuanMa[key];
+//	};
+//	TempData[7]=DuanMa[key];
+//	TempData[6]=DuanMa[key];
+	while(1);
 }
 
 //洗涤高层程序
@@ -251,11 +385,9 @@ void wash(){
 	  if(flag_cycle == 1)break;
     }
 	flag_cycle = 0;
+	cycle = 5;
 }
-//漂洗高层程序
-void wash2(){
 
-}
 //甩干高层程序
 void dry(){
 	unsigned char i;
@@ -297,29 +429,30 @@ void autorun(){
 	water_out();
 	dry();
 	water_in();
-	wash2();
+	wash();
 	water_out();
 	dry();
 	water_in();
-	wash2();
+	wash();
 	water_out();
 	dry();
 	song();
 }
 void main(){
    init();
-   autorun();
+   menu();
+   //autorun();
    //song();
    //wash();
    //water_in();
-   while(1);
+   //while(1);
 }
 
 void water_ok() interrupt 0{
  	flag_water = 1;
 	led_state = flag_water;
 }
-void timer_int() interrupt 1{
+void timer0_int() interrupt 1{
 	count_1s--;
 	TF0 = 0;
 	if(count_1s == 0){
@@ -344,4 +477,10 @@ void timer_int() interrupt 1{
 	}
  	settimer0();
 	TR0 = 1;
+}
+
+void timer1_int() interrupt 3{
+	 TR1 = 0;
+ 	 Display(0,8);       // 调用数码管扫描
+	 TR1 = 1;
 }
