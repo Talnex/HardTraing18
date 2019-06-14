@@ -3,12 +3,13 @@
 #define COUNT_XMIN 1
 #define COUNT_XS 10
 static unsigned int count_1s = 20;
-static unsigned int count_xs = COUNT_XS;
-static unsigned int count_xmin = COUNT_XMIN *2;
-static unsigned int cycle = 5;
+static unsigned int count_xs = COUNT_XS;	//反向间隔时间
+static unsigned int count_xmin = COUNT_XMIN *2;	 //单向转运行时间
+static unsigned int cycle = 5;	//用户定时
+static unsigned int mode = 1;//洗衣机选择的模式
 
 static unsigned int SCALE = 1;
-static unsigned int flag_water = 0;
+static unsigned int flag_water = 0;//水进、出完成的信号
 static unsigned int flag_xs = 0;
 static unsigned int flag_xmin = 0;
 static unsigned int flag_cycle = 0;
@@ -39,13 +40,18 @@ sbit key_in = P2^5;//模拟进水结束中断
 
 sbit music = P2^3;//蜂鸣器
 
-unsigned char code DuanMa[10]={0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7d,0x07,0x7f,0x6f};// 显示段码值0~9
+unsigned char code DuanMa[11]={0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7d,0x07,0x7f,0x6f,0x00};// 显示段码值0~9
 unsigned char code WeiMa[]={0xfe,0xfd,0xfb,0xf7,0xef,0xdf,0xbf,0x7f};//分别对应相应的数码管点亮,即位码
 unsigned char TempData[8]; //存储显示值的全局变量
 
 
 void moto_run();
 void autorun();
+unsigned char KeyScan();
+void dry();
+void wash2();
+void wash();
+
 
 void setdisplay(unsigned char a,unsigned char b,unsigned char c,unsigned char d,
 				unsigned char e,unsigned char f,unsigned char g,unsigned char h){
@@ -225,7 +231,54 @@ void moto_stop(){
 	motor1 = 1;
 	motor2 = 1;
 }
+//洗涤选择时间程序
+void selecttime(){
+	unsigned char key;
+	unsigned int a=0;
+	unsigned int b=0;
 
+    displayclr();
+	TempData[7] = DuanMa[b];
+	TempData[6] = DuanMa[a];
+	
+	while(1){
+	  key = KeyScan();
+	  if(key!=0){
+		  if(key!=3){
+		   	if(key==1){
+			 	cycle = (a*10 + b)/2;
+				wash();
+			}else if(key==4){
+			 	if(b==0){
+				  if(a!=0){
+					 a--;
+					 b=5;
+				  }
+				}else{
+				  b=0;
+				}
+				TempData[7] = DuanMa[b];
+				TempData[6] = DuanMa[a];
+			}else if(key==5){
+				if(b==5){
+				  if(a<6){
+					 a++;
+					 b=0;
+				  }
+				  
+				}else{
+				  if(a!=6) b=5;
+				}
+				TempData[7] = DuanMa[b];
+				TempData[6] = DuanMa[a];
+			}
+		  }
+	  }
+	  
+	}
+
+
+}
 //按键扫描程序
 unsigned char KeyScan(void)
 {
@@ -314,7 +367,29 @@ void song(){
 }
 //手动选择模式
 void diy(){
+	unsigned char key;
 
+	displayclr();
+	TempData[6]=DuanMa[0];
+    TempData[7]=DuanMa[1];
+	while(1){
+	  key = KeyScan();
+	  if(key!=0){
+		  if(key!=3){
+		   	if(key==1){
+			 	if(mode==3)dry();
+				if(mode==2)wash2();
+				if(mode==1)selecttime();
+			}else if(key==4){
+			 	if(mode>1)mode--;
+			}else if(key==5){
+				if(mode<4)mode++;
+			}
+		  }
+	  }
+	   TempData[7]=DuanMa[mode];
+	  
+	}
 }
 
 //功能选择
@@ -387,6 +462,17 @@ void wash(){
 	flag_cycle = 0;
 	cycle = 5;
 }
+//漂洗高级程序
+void wash2(){
+	water_in();
+	wash();
+	water_out();
+	dry();
+	water_in();
+	wash();
+	water_out();
+	dry();
+}
 
 //甩干高层程序
 void dry(){
@@ -404,19 +490,19 @@ void dry(){
 			  led_2 = 1;
 	 	   	  led_3 = 0;
 	 			 
-	  		  delayms(200);
+	  		  delayms(50);
 
 	  		  led_1 = 1;
 	  		  led_2 = 0;
 	  		  led_3 = 1;
 	  
-	  		  delayms(200);
+	  		  delayms(50);
 
 	  		  led_1 = 0;
 	  		  led_2 = 1;
 	  		  led_3 = 1;
 	  
-	 		  delayms(200);
+	 		  delayms(50);
    			}
 	water_stop();
 	moto_stop();
@@ -428,14 +514,7 @@ void autorun(){
 	wash();
 	water_out();
 	dry();
-	water_in();
-	wash();
-	water_out();
-	dry();
-	water_in();
-	wash();
-	water_out();
-	dry();
+	wash2();
 	song();
 }
 void main(){
@@ -463,6 +542,8 @@ void timer0_int() interrupt 1{
 		flag_xs = 1;
 		count_xmin--;
 		cycle--;
+		TempData[6] = DuanMa[(cycle*2)/10];
+		TempData[7] = DuanMa[(cycle*2)%10];
 		if(count_xmin==0){
 		   count_xmin=COUNT_XMIN *2;
 		   flag_xmin = 1;
