@@ -1,8 +1,18 @@
 #include<stc.h>
 #define DataPort P0
+#define COUNT_XMIN 1
+#define COUNT_XS 10
+static unsigned int count_1s = 20;
+static unsigned int count_xs = COUNT_XS;
+static unsigned int count_xmin = COUNT_XMIN *2;
+static unsigned int cycle = 5;
 
 static unsigned int SCALE = 1;
 static unsigned int flag_water = 0;
+static unsigned int flag_xs = 0;
+static unsigned int flag_xmin = 0;
+static unsigned int flag_cycle = 0;
+
 static unsigned int zhuan = 0;
 
 sbit led_1 = P1^0;//表示水流方向的三个灯
@@ -34,11 +44,19 @@ unsigned char TempData[8]; //存储显示值的全局变量
 
 void moto_run();
 
+void settimer0(){
+
+	TH0 = 0x4C;
+	TL0 = 0x00;
+
+}
 void init(){
   P1 = 0x00;
   P2 = 0xff;
+  TMOD|=0x11;
+  settimer0();
 //  P3 = 0xff;
-  EA = 1;
+  //EA = 1;
 }
 
 void DelayUs2x(unsigned char t)
@@ -93,6 +111,7 @@ void water_in(){
    switch_1 = 1;
    switch_2 = 0;
    EX0 = 1;
+   EA = 1;
    flag_water = 0;
    while(!flag_water){
    	  led_state = flag_water;
@@ -156,11 +175,16 @@ void moto_nur(){
 	motor1 = 0;
 	motor2 = 1;
 }
+//模拟全速甩干
+void moto_all(){
+	motor1 = 0;
+	motor2 = 0;
+}
 
 //电机停止
 void moto_stop(){
-	motor1 = 0;
-	motor2 = 0;
+	motor1 = 1;
+	motor2 = 1;
 }
 
 //按键扫描程序
@@ -170,28 +194,63 @@ void keyscan(){
 }
 //报警程序
 void song(){
+   unsigned int i;
 
+ 	while(1)
+   {
+   		for(i=0;i<200;i++)
+      	{
+     		 DelayUs2x(200); 
+	  	     music=!music;
+	    }
+	    music=0;//防止一直给喇叭通电造成损坏
+   		for(i=0;i<200;i++)
+       {
+      	     delayms(1);  
+	   }       
+    }
 }
 
 //功能选择
 void menu(){
 
-
-}
-//时间设置
-void Timer0Init()		//1毫秒@11.0592MHz
-{
-	AUXR |= 0x80;		//定时器时钟1T模式
-	TMOD &= 0xF0;		//设置定时器模式
-	TL0 = 0xCD;		//设置定时初值
-	TH0 = 0xD4;		//设置定时初值
-	TF0 = 0;		//清除TF0标志
-	TR0 = 1;		//定时器0开始计时
 }
 
 //洗涤高层程序
 void wash(){
+	ET0 = 1;
+	EA = 1;
+	TR0 = 1;
+   	while(flag_cycle==0){
+	  moto_run();	  
+	  while(flag_xmin==0);
+	  flag_xmin = 0;
+	  flag_xs = 0;
 
+	  if(flag_cycle == 1)break;
+
+	  moto_stop();
+	  while(flag_xs==0);
+	  flag_xmin = 0;
+	  flag_xs = 0;
+
+	  if(flag_cycle == 1)break;
+
+	  moto_nur();	  
+	  while(flag_xmin==0);
+	  flag_xmin = 0;
+	  flag_xs = 0;
+
+	  if(flag_cycle == 1)break;
+
+	  moto_stop();
+	  while(flag_xs==0);
+	  flag_xmin = 0;
+	  flag_xs = 0;
+
+	  if(flag_cycle == 1)break;
+    }
+	flag_cycle = 0;
 }
 //漂洗高层程序
 void wash2(){
@@ -202,7 +261,8 @@ void dry(){
 	unsigned char i;
 	unsigned char j;
 	unsigned char k;
-	moto_run();
+	moto_all();
+	
 	for(i=2;i>0;i--)
 		for(j=2;j>0;j--)
 			for(k=2;k>0;k--)
@@ -248,12 +308,40 @@ void autorun(){
 }
 void main(){
    init();
-   //autorun();
-   moto_run();
+   autorun();
+   //song();
+   //wash();
+   //water_in();
    while(1);
 }
 
 void water_ok() interrupt 0{
  	flag_water = 1;
 	led_state = flag_water;
+}
+void timer_int() interrupt 1{
+	count_1s--;
+	TF0 = 0;
+	if(count_1s == 0){
+	 count_1s = 20;
+	 count_xs--;
+	 if(count_xs == 0){
+	  	count_xs = COUNT_XS;
+		flag_xs = 1;
+		count_xmin--;
+		cycle--;
+		if(count_xmin==0){
+		   count_xmin=COUNT_XMIN *2;
+		   flag_xmin = 1;
+		}
+		if(cycle ==0){
+		   flag_cycle = 1;
+		}
+	 }
+	 else{
+	 
+	 } 
+	}
+ 	settimer0();
+	TR0 = 1;
 }
