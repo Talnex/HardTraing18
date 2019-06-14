@@ -6,7 +6,7 @@ static unsigned int count_1s = 20;
 static unsigned int count_xs = COUNT_XS;	//反向间隔时间
 static unsigned int count_xmin = COUNT_XMIN *2;	 //单向转运行时间
 static unsigned int cycle = 5;	//用户定时
-static unsigned int mode = 1;//洗衣机选择的模式
+static unsigned int mode = 3;//洗衣机选择的模式
 
 static unsigned int SCALE = 1;
 static unsigned int flag_water = 0;//水进、出完成的信号
@@ -52,6 +52,7 @@ unsigned char KeyScan();
 void dry();
 void wash2();
 void wash();
+void song();
 
 
 void setdisplay(unsigned char a,unsigned char b,unsigned char c,unsigned char d,
@@ -249,6 +250,8 @@ void selecttime(){
 		   	if(key==1){
 			 	cycle = (a*10 + b)/2;
 				wash();
+				EA = 0;
+				song();
 			}else if(key==4){
 			 	if(b==0){
 				  if(a!=0){
@@ -372,19 +375,27 @@ void diy(){
 
 	displayclr();
 	TempData[6]=DuanMa[0];
-    TempData[7]=DuanMa[1];
+    TempData[7]=DuanMa[3];
 	while(1){
 	  key = KeyScan();
 	  if(key!=0){
 		  if(key!=3){
 		   	if(key==1){
-			 	if(mode==3)dry();
-				if(mode==2)wash2();
+			 	if(mode==3){
+					dry();
+					EA = 0;
+					song();
+				}
+				if(mode==2){
+					wash2();
+					EA = 0;
+					song();
+				}
 				if(mode==1)selecttime();
 			}else if(key==4){
 			 	if(mode>1)mode--;
 			}else if(key==5){
-				if(mode<4)mode++;
+				if(mode<3)mode++;
 			}
 		  }
 	  }
@@ -516,6 +527,7 @@ void autorun(){
 	water_out();
 	dry();
 	wash2();
+	EA = 0;
 	song();
 }
 void main(){
